@@ -18,7 +18,7 @@ func NewJWTService() *JWTService {
 	return &JWTService{}
 }
 
-var SecretKey = []byte("crud-testing")
+var SecretKey = []byte("bpjs")
 
 func (s *JWTService) GenerateTokenJWT(email string) (string, error) {
 	claim := jwt.MapClaims{}

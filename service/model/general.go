@@ -9,3 +9,9 @@ type User struct {
 	Email     string    `json:"email"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type ErrorResponse struct {
+	FailedField string
+	Tag         string
+	Value       string
+}

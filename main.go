@@ -4,18 +4,28 @@ import (
 	"go-crud/lib/db"
 	"go-crud/service/config"
 	"go-crud/service/handler"
-	"go-crud/service/repository"
+	"go-crud/service/repo"
 	"go-crud/service/usecase"
 	"log"
 	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
+	sesion "github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/golang-jwt/jwt"
+	"github.com/valyala/fasthttp"
 )
 
 func main() {
-	route := gin.Default()
+	route := fiber.New()
+
+	store := sesion.New()
+	ctx := route.AcquireCtx(&fasthttp.RequestCtx{})
+	s, err := store.Get(ctx)
+	if err != nil {
+		panic(err)
+	}
+
 	set := config.Config{}
 	set.CatchError(set.InitEnv())
 	Database := set.GetDBConfig()
@@ -25,35 +35,35 @@ func main() {
 		return
 	}
 
-	UserRepo := repository.NewRepoUser(db)
+	UserRepo := repo.NewRepoUser(db)
 	AuthUsecase := usecase.NewJWTService()
 	UserUsecase := usecase.NewUsecaseUser(UserRepo, AuthUsecase)
 
-	HanderUser := handler.NewHandlerUser(UserUsecase)
+	HanderUser := handler.NewHandlerUser(UserUsecase, s)
 
-	user := route.Group("/api/user")
+	apps := route.Group("/api/")
+	users := apps.Group("/users")
+	users.Use(authMiddleware(s, AuthUsecase, UserRepo))
 
-	user.POST("/registration", HanderUser.RegistrationDataUser)
-	user.GET("/login", HanderUser.LoginDataUser)
-	user.PUT("/:id", authMiddleware(AuthUsecase, UserRepo), HanderUser.UpdateDataUser)
-	user.GET("/:id", authMiddleware(AuthUsecase, UserRepo), HanderUser.DetailUsers)
-	server := http.Server{
-		Addr:    "127.0.0.1:8002",
-		Handler: route,
-	}
-	server.ListenAndServe()
+	apps.Post("/registration", HanderUser.RegistrationDataUser)
+	apps.Get("/login", HanderUser.LoginDataUser)
+	users.Put("/:id", HanderUser.UpdateDataUser)
+	users.Get("/:id", HanderUser.DetailUsers)
+
+	err = route.Listen("127.0.0.1:8002")
 	if err != nil {
 		return
 	}
 
 }
 
-func authMiddleware(authService usecase.Auth, userService repository.UserRepo) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
+func authMiddleware(s *sesion.Session, authService usecase.Auth, userService repo.UserRepo) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+
+		authHeader := c.Get("Authorization")
 		if !strings.Contains(authHeader, "Bearer") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, "Unauthorized")
-			return
+			c.Status(http.StatusUnauthorized).SendString("Unauthorized")
+			return nil
 		}
 
 		var tokenString string
@@ -64,24 +74,27 @@ func authMiddleware(authService usecase.Auth, userService repository.UserRepo) g
 
 		token, err := authService.ValidateToken(tokenString)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, "Unauthorized")
-			return
+			c.Status(http.StatusUnauthorized).SendString("Unauthorized")
+			return err
 		}
 		claim, ok := token.Claims.(jwt.MapClaims)
 		if !ok || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, "Unauthorized")
-			return
+			c.Status(http.StatusUnauthorized).SendString("Unauthorized")
+			return err
 		}
 
 		Email := (claim["email"].(string))
 
 		user, err := userService.GetUsersByEmail(Email)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, "Unauthorized")
-			return
+			c.Status(http.StatusUnauthorized).SendString("Unauthorized")
+			return err
 		}
 
-		c.Set("CurrentUser", user)
+		s.Set("CurrentUser", user)
+
+		c.Next()
+		return nil
 
 	}
 }

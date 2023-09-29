@@ -3,30 +3,30 @@ package request
 import "go-crud/service/model"
 
 type Register struct {
-	Firstname string `json:"firstname" binding:"required"`
-	LastName  string `json:"lastname" binding:"required"`
-	Username  string `json:"username" binding:"required"`
-	Password  string `json:"password" binding:"required,min=12"`
-	Email     string `json:"email" binding:"required,email"`
+	Firstname string `json:"firstname" validate:"required"`
+	LastName  string `json:"lastname" validate:"required"`
+	Username  string `json:"username" validate:"required"`
+	Password  string `json:"password" validate:"required,min=12"`
+	Email     string `json:"email" validate:"required,email"`
 }
 
 type Login struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Username string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required"`
 }
 
 type UpdatedUsers struct {
-	Id int `uri:"id" binding:"required"`
+	Id int `uri:"id" validate:"required"`
 }
 
 type DetailUsers struct {
-	Id int `uri:"id" binding:"required"`
+	Id int `uri:"id" validate:"required"`
 }
 
 type UpdateUser struct {
-	Name     string `json:"name" binding:"required"`
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required,min=12"`
-	Email    string `json:"email" binding:"required,email"`
+	Name     string `json:"name" validate:"required"`
+	Username string `json:"username" validate:"required"`
+	Password string `json:"password" validate:"required,min=12"`
+	Email    string `json:"email" validate:"required,email"`
 	Users    model.User
 }
